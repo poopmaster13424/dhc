@@ -1,0 +1,494 @@
+_G.configurations = {
+    status = true, -- Toggle Farm
+    webhook = '', -- Does Nothing Just Yet
+    spinspeed = 3, -- Spin Speed ( Recommended : 3 )
+    pickupdelay = 0.7, -- Pickup Delay
+    furtherdelay = 0.25, -- Further Pickup Delay ( pickupdelay + furtherdelay to prevent kicks)
+    mask = true, -- Auto Mask
+    unjail = true, -- Auto Unjail
+    autobox = true, -- Auto Box ( Automatically Boxes -> Equips Boxing Moveset -> Farms )
+    hospitalwhenidle = true, -- Farms Hospital When Idle ( No ATMS )
+    shoeswhenidle = true, -- Farms Shoes When Idle ( No ATMS)
+    serverhop = {
+        timer = { -- Will Serverhop After The Given Time
+            usetimer = false,
+            seconds = 60
+        },
+        hopifjoined = false, -- Will Serverhop If Player Under The joinedids Joins.
+        joinedids = {
+
+        },
+        hoponjoined = true, -- Will Serverhop If Player Under ids Is Already In The Server.
+        ids = {
+            5710823945,
+            5710210618,
+            5710013905,
+            5706413994,
+            5692800274,
+            5710252903,
+            5690906119,
+            5710604126,
+            5707171726,
+            5706960365,
+            5693713285,
+            5710224800,
+            5705864002,
+            5708893367,
+            5705559255,
+            5710942047,
+            5704549932,
+            5706585932,
+            5704077970,
+            5706483902,
+
+        }
+    }
+}
+-- Waiting For Game To Load
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until game.Players.LocalPlayer.Character:FindFirstChild('FULLY_LOADED_CHAR')
+
+if _G.configurations.status == false then return end
+
+-- Variables
+local players = game.Players
+local localplayer = players.LocalPlayer
+local backpack = localplayer.Backpack
+
+local datafolder = localplayer:WaitForChild('DataFolder')
+local information = datafolder:WaitForChild('Information')
+
+local registerfolder = workspace.Cashiers
+local dropfolder = workspace.Ignored.Drop
+
+local httpservice = game:GetService('HttpService')
+local teleportservice = game:GetService('TeleportService')
+local api = 'https://games.roblox.com/v1/games'
+
+-- Anti AFK
+localplayer.Idled:Connect(function()
+    game:GetService('VirtualUser'):Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame);
+    wait(1);
+    game:GetService('VirtualUser'):Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame);
+end);
+
+-- Format
+local function format(number)
+    number = tostring(number)
+    return number:reverse():gsub('...','%0,',math.floor((#number-1)/3)):reverse()
+end
+
+-- Serverhopping
+local function serverhop()
+    local placeid = game.PlaceId
+    local servers = httpservice:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/'.. placeid.. '/servers/Public?sortOrder=Asc&limit=100'))
+    local openservers = {}
+    for _, v in pairs(servers.data) do
+        if v.playing ~= v.maxPlayers and v.playerIds ~= localplayer.UserId then
+            table.insert(openservers, v)
+        end
+    end
+
+    teleportservice:TeleportToPlaceInstance(placeid, openservers[math.random(1, #openservers)].id)
+end
+
+if _G.configurations.serverhop.hoponjoined then
+    for _, player in ipairs(players:GetPlayers()) do
+        if table.find(_G.configurations.serverhop.ids, player.UserId) and player ~= localplayer then
+            serverhop()
+        end
+    end
+end
+
+if _G.configurations.serverhop.hopifjoined then
+    players.PlayerAdded:Connect(function(player)
+        if table.find(_G.configurations.serverhop.joinedids, player.UserId) and player ~= localplayer then
+            serverhop()
+        end
+    end)
+end
+
+if _G.configurations.serverhop.timer.usetimer then
+    task.delay(_G.configurations.serverhop.timer.seconds, function()
+        serverhop()
+    end)
+end
+
+-- Rejoin
+game:GetService('CoreGui').RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
+    if child.Name == 'ErrorPrompt' and child:FindFirstChild('MessageArea') and child.MessageArea:FindFirstChild('ErrorFrame') then
+        teleportservice:Teleport(game.PlaceId)
+    end
+end)
+
+-- Check For Boxing
+if _G.configurations.autobox == true then
+    if not information:FindFirstChild('BoxingValue') then
+        -- Get Boxing Value
+        local punchingbag = workspace.MAP.Map['Punching(BAGS)']:GetChildren()[2]['pretty ransom']
+        repeat
+            task.wait()
+
+            localplayer.Character.HumanoidRootPart.CFrame = punchingbag.CFrame
+            localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+            if backpack:FindFirstChild('Combat') then
+                localplayer.Character.Humanoid:EquipTool(backpack.Combat)
+            else
+                localplayer.Character:FindFirstChild('Combat'):Activate()
+                localplayer.Character:FindFirstChild('Combat'):Deactivate()
+            end
+        until information:FindFirstChild('BoxingValue')
+    end
+
+    if tonumber(information:FindFirstChild('BoxingValue').Value) < 2500 then
+        -- Increase Boxing Value
+        local punchingbag = workspace.MAP.Map['Punching(BAGS)']:GetChildren()[2]['pretty ransom']
+        repeat
+            task.wait()
+
+            localplayer.Character.HumanoidRootPart.CFrame = punchingbag.CFrame
+            localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+            if backpack:FindFirstChild('Combat') then
+                localplayer.Character.Humanoid:EquipTool(backpack.Combat)
+            else
+                localplayer.Character:FindFirstChild('Combat'):Activate()
+                localplayer.Character:FindFirstChild('Combat'):Deactivate()
+            end
+        until tonumber(information:FindFirstChild('BoxingValue').Value) >= 2500
+    end
+
+    if not information:FindFirstChild('FightingStyle') then
+        local button = workspace.Ignored.Shop['[Default Moveset] - $0']
+        repeat
+            task.wait()
+
+            localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(button.Head.Position - Vector3.new(0, 10, 0))
+            localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+            if fireclickdetector then
+                -- Function Exists
+                fireclickdetector(button.ClickDetector)
+            else   
+                localplayer:Kick('Executor Does Not Support fireclickdetector')
+            end
+        until information:FindFirstChild('FightingStyle')
+    end
+
+    if tonumber(information:FindFirstChild('BoxingValue').Value) >= 2500 then
+        local button = workspace.Ignored.Shop['Boxing Moveset (Require: Max Box Stat) - $0']
+        repeat
+            task.wait()
+
+            localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(button.Head.Position - Vector3.new(0, 10, 0))
+            localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+            if fireclickdetector then
+                -- Function Exists
+                fireclickdetector(button.ClickDetector)
+            else   
+                localplayer:Kick('Executor Does Not Support fireclickdetector')
+            end
+        until information:FindFirstChild('FightingStyle').Value ~= 'Default'
+    end
+
+    localplayer.Character.Humanoid:UnequipTools()
+end
+
+-- Delete Seats
+for _,seat in ipairs(workspace:GetDescendants()) do
+    if seat:IsA('Seat') or seat:IsA('VehicleSeat') then
+        seat.Disabled = true
+    end
+end
+-- FPS Improvement
+if workspace:FindFirstChild('MAP') then
+    workspace:FindFirstChild('MAP'):Destroy() 
+end
+
+if workspace:FindFirstChild('Lights') then
+    workspace:FindFirstChild('Lights'):Destroy()
+end
+
+if workspace:FindFirstChild('VehicleSpawner') then
+    workspace:FindFirstChild('VehicleSpawner'):Destroy()
+end
+
+for _, v in ipairs(registerfolder:GetChildren()) do
+    local floor = Instance.new('Part')
+    floor.Parent = workspace
+    floor.Anchored = true
+    floor.CFrame = CFrame.new(v.Head.Position - Vector3.new(0, 25, 0))
+    floor.Size = Vector3.new(100, 5, 100)
+end
+
+local floor = Instance.new('Part')
+floor.Parent = workspace
+floor.Anchored = true
+floor.CFrame = CFrame.new(0, -275, 0)
+floor.Size = Vector3.new(100, 5, 100)
+
+-- Webhook
+local function sendwebhook()
+    if _G.configurations.webhook == '' then
+        return
+    else
+        local data = {
+            ['embeds'] = {
+                {
+                    ['title'] = '',
+                    ['description'] =  '``Username:`` ||'..localplayer.Name..'||\n``UserId:`` ||'..tostring(localplayer.UserId)..'||\n\n``Timestamp:`` <t:'..os.time()..':R>\n',
+                    ['color'] = 16777215,
+                    ['fields'] = {
+                        {
+                            ['name'] = 'Cash',
+                            ['value'] = '```$'..tostring(format(localplayer.DataFolder.Currency.Value))..'```'
+                        },
+                    },
+                    ['author'] = {
+                        ['name'] = 'Host Autofarm',
+                        ['icon_url'] = 'https://cdn.discordapp.com/attachments/1233137793367150643/1233138161740288030/black_square.gif?ex=662c00e8&is=662aaf68&hm=0552eddf73a3efe41bb86a454718dd82b501752e81dffcd142f643028da766ab&'
+                    },
+                    ['url'] = 'https://discord.gg/5PrhDsvtGc'
+                }
+            }
+        }
+
+        local converted_data = httpservice:JSONEncode(data)
+        local headers = {
+           ['content-type'] = 'application/json'
+        }
+       
+        local data = {Url = _G.configurations.webhook, Body = converted_data, Method = 'POST', Headers = headers}
+        request(data)
+    end
+end
+
+if _G.configurations.webhook ~= '' then
+    sendwebhook()
+end
+
+-- Farm
+_G.connection = localplayer.CharacterAdded:Connect(function(character)
+    character:WaitForChild('FULLY_LOADED_CHAR')
+    character:WaitForChild('HumanoidRootPart')
+
+    repeat
+        task.wait()
+
+        character.HumanoidRootPart.CFrame = CFrame.new(0, -250, 0)
+        character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+    until character:WaitForChild('FULLY_LOADED_CHAR') or _G.configurations.status == false
+
+    if _G.configurations.unjail then
+        if character:WaitForChild('BodyEffects'):WaitForChild('Cuff').Value == true then
+            local key_button = nil
+            for _, button in ipairs(workspace.Ignored.Shop:GetChildren()) do
+                local split = string.split(button.Name, ' ')
+                if split[1] == '[Key]' and button:FindFirstChild('Head') then
+                    key_button = button
+                end
+            end
+
+            if key_button then
+                repeat
+                    task.wait()
+        
+                    character.HumanoidRootPart.CFrame = key_button.Head.CFrame * CFrame.new(0, -10, 0)
+                    character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+        
+                    fireclickdetector(key_button.ClickDetector)
+                until localplayer.Backpack:FindFirstChild('[Key]') or getgenv().farm == false
+            
+                repeat
+                    task.wait()
+        
+                    if localplayer.Backpack:FindFirstChild('[Key]') then
+                        localplayer.Character.Humanoid:EquipTool(localplayer.Backpack:FindFirstChild('[Key]'))
+                    end
+        
+                    character.HumanoidRootPart.CFrame = mask_button.Head.CFrame * CFrame.new(0, -10, 0)
+                    character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                until localplayer.Character:FindFirstChild('[Key]')
+            end
+        end
+    end
+
+    if _G.configurations.mask then
+        local mask_button = nil
+        for _, button in ipairs(workspace.Ignored.Shop:GetChildren()) do
+            local split = string.split(button.Name, ' ')
+            if split[1] == '[Surgeon' and button:FindFirstChild('Head') then
+                mask_button = button
+            end
+        end
+
+        if mask_button then
+            repeat
+                task.wait()
+
+                character.HumanoidRootPart.CFrame = mask_button.Head.CFrame * CFrame.new(0, -10, 0)
+                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                fireclickdetector(mask_button.ClickDetector)
+            until localplayer.Backpack:FindFirstChild('[Mask]') or getgenv().farm == false
+        
+            repeat
+                task.wait()
+
+                if localplayer.Backpack:FindFirstChild('[Mask]') then
+                    localplayer.Character.Humanoid:EquipTool(localplayer.Backpack:FindFirstChild('[Mask]'))
+                end
+
+                character.HumanoidRootPart.CFrame = mask_button.Head.CFrame * CFrame.new(0, -10, 0)
+                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+            until localplayer.Character:FindFirstChild('[Mask]')
+
+            localplayer.Character:FindFirstChild('[Mask]'):Activate()
+        end
+    end
+
+    repeat
+        task.wait()
+
+        local success, response = pcall(function()
+            local register = nil
+            for _, v in ipairs(registerfolder:GetChildren()) do
+                if v.Humanoid.Health > 0 then
+                    register = v
+                end
+            end
+
+            if register then
+                local spinvalue = 0
+                repeat
+                    task.wait()
+
+                    if localplayer.Character:FindFirstChild('Combat') then
+                        localplayer.Character:FindFirstChild('Combat'):Activate()
+
+                        if localplayer.Character.BodyEffects.Attacking.Value == true then
+                            local healthchangecount = 0
+                            local registerhealth = register.Humanoid.Health
+                            repeat
+                                task.wait()
+
+                                if register.Humanoid.Health ~= registerhealth then
+                                    registerhealth = register.Humanoid.Health
+                                    healthchangecount = healthchangecount + 1
+                                end
+
+                                spinvalue = spinvalue + _G.configurations.spinspeed
+                                character.HumanoidRootPart.CFrame = register.Open.CFrame * CFrame.Angles(0, math.rad(spinvalue), 0)
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                            until healthchangecount >= 2 or register.Humanoid.Health <= 0 or localplayer.Character.BodyEffects.Attacking.Value == false or _G.configurations.status == false
+                        end
+                    else
+                        localplayer.Character.Humanoid:EquipTool(localplayer.Backpack:FindFirstChild('Combat'))
+                    end
+
+                    character.HumanoidRootPart.CFrame = CFrame.new(register.Open.Position - Vector3.new(0, 10, 0))
+                    character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                until register.Humanoid.Health <= 0 or _G.configurations.status == false
+
+                localplayer.Character.Humanoid:UnequipTools()
+
+                for _, v in ipairs(dropfolder:GetChildren()) do
+                    if v.Name == 'MoneyDrop' and (localplayer.Character.HumanoidRootPart.Position - v.Position).Magnitude <= 12 then
+                        local timer = tick()
+                        repeat
+                            task.wait()
+
+                            localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(v.Position - Vector3.new(0, 10, 0))
+                            localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                            if tick() - timer >= _G.configurations.pickupdelay and v:FindFirstChild('ClickDetector') then
+                                fireclickdetector(v.ClickDetector)
+                                timer = tick()
+                            end
+                        until not v:FindFirstChild('ClickDetector') or v.Parent == nil or _G.configurations.status == false
+                    elseif v.Name == 'MoneyDrop' and (localplayer.Character.HumanoidRootPart.Position - v.Position).Magnitude <= 25 then
+                        local timer = tick()
+                        repeat
+                            task.wait()
+
+                            localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(v.Position - Vector3.new(0, 10, 0))
+                            localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                            if tick() - timer >= _G.configurations.pickupdelay + _G.configurations.furtherdelay and v:FindFirstChild('ClickDetector') then
+                                fireclickdetector(v.ClickDetector)
+                                timer = tick()
+                            end
+                        until not v:FindFirstChild('ClickDetector') or v.Parent == nil or _G.configurations.status == false
+                    end
+                end
+            else
+                localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(0, -250, 0)
+                localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                if _G.configurations.hospitalwhenidle == true then
+                    local function getColor()
+                        for _, npc in ipairs(workspace.Ignored.HospitalJob:GetChildren()) do
+                            if npc:IsA('Model') then
+                                local nameSplit = string.split(npc.Name, ' ')
+                                if table.find(nameSplit, 'Red') then
+                                    return workspace.Ignored.HospitalJob.Red
+                                elseif table.find(nameSplit, 'Blue') then
+                                    return workspace.Ignored.HospitalJob.Blue
+                                elseif table.find(nameSplit, 'Green') then
+                                    return workspace.Ignored.HospitalJob.Green
+                                end
+                            end
+                        end
+                    
+                        return nil
+                    end
+
+                    local color = getColor()
+                    if color then
+                        repeat
+                            task.wait()
+                
+                            localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(color.Position - Vector3.new(0, 11, 0))
+                            localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                
+                            fireclickdetector(color.ClickDetector)
+                        until localplayer.Character.BodyEffects.HospitalJob.Value == color.Name
+                    
+                        repeat
+                            task.wait()
+                
+                            localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(workspace.Ignored.HospitalJob:FindFirstChildOfClass('Model').HumanoidRootPart.Position - Vector3.new(0, 7, 0))
+                            fireclickdetector(workspace.Ignored.HospitalJob:FindFirstChildOfClass('Model').ClickDetector)
+                        until getColor() == nil
+                    end
+                end
+
+                if _G.configurations.shoeswhenidle == true then
+                    for _, shoe in ipairs(workspace.Ignored.Drop:GetChildren()) do
+                        if shoe.Name == 'MeshPart' then
+                            repeat
+                                task.wait()
+
+                                localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(shoe.Position - Vector3.new(0, 7, 0))
+                                localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                    
+                                if shoe and shoe:FindFirstChild('ClickDetector') then
+                                    fireclickdetector(shoe.ClickDetector)
+                                end
+                            until shoe.Parent == nil or _G.configurations.status
+                        end
+                    end
+
+                    localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(workspace.Ignored['Clean the shoes on the floor and come to me for cash'].HumanoidRootPart.Position - Vector3.new(0, 7, 0))
+                    localplayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                
+                    if character.BodyEffects.ShoesCollect.Value ~= 0 then
+                        fireclickdetector(workspace.Ignored['Clean the shoes on the floor and come to me for cash'].ClickDetector)
+                    end
+                end
+            end
+        end)
+    until _G.configurations.status == false
+end)
